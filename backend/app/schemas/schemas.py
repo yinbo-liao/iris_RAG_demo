@@ -1,0 +1,120 @@
+from __future__ import annotations
+from typing import Any, Literal, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+
+
+# ── Request ──────────────────────────────────────────────────────────
+
+class QueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000, description="Natural language query")
+    approach: Literal["function_call", "combined_tools"] = Field(
+        ..., description="Processing approach: single tool or combined tools + RAG"
+    )
+
+
+# ── Tool schema ──────────────────────────────────────────────────────
+
+class ToolSchema(BaseModel):
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
+# ── Knowledge document ───────────────────────────────────────────────
+
+class KnowledgeDocOut(BaseModel):
+    doc_id: str
+    title: str
+    content: str
+    category: str
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ── Statistics ───────────────────────────────────────────────────────
+
+class SpeciesStats(BaseModel):
+    count: int
+    species: str
+
+
+class FeatureRange(BaseModel):
+    sepal_length: dict[str, float]
+    sepal_width: dict[str, float]
+    petal_length: dict[str, float]
+    petal_width: dict[str, float]
+
+
+class StatsResponse(BaseModel):
+    total_samples: int
+    species_distribution: list[SpeciesStats]
+    feature_ranges: FeatureRange
+    knowledge_doc_count: int
+    tools_count: int
+
+
+# ── History ──────────────────────────────────────────────────────────
+
+class HistoryEntry(BaseModel):
+    id: int
+    approach: str
+    query_text: str
+    tools_called: list[str]
+    rag_used: str
+    confidence: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ── Tool result ──────────────────────────────────────────────────────
+
+class ToolResult(BaseModel):
+    tool: str
+    result: Any
+
+
+class KnowledgeResult(BaseModel):
+    doc_id: str
+    title: str
+    content: str
+    score: float
+
+
+# ── Responses ────────────────────────────────────────────────────────
+
+class FunctionCallResponse(BaseModel):
+    approach: str = "function_call"
+    approach_label: str = "Function Call"
+    tools_called: list[str]
+    rag_used: bool = False
+    result: Any
+    explanation: str
+    query: str
+
+
+class CombinedToolsResponse(BaseModel):
+    approach: str = "combined_tools"
+    approach_label: str = "Combined Tools (RAG + Functions)"
+    tools_called: list[str]
+    rag_used: bool = True
+    results: list[ToolResult]
+    knowledge: list[KnowledgeResult]
+    synthesis: str
+    explanation: str
+    query: str
+
+
+class CompareResponse(BaseModel):
+    query: str
+    function_call: FunctionCallResponse
+    combined_tools: CombinedToolsResponse
+
+
+# ── Seed response ────────────────────────────────────────────────────
+
+class SeedResponse(BaseModel):
+    message: str
+    count: int

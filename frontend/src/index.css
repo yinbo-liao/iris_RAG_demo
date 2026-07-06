@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ─────────────────────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen;
+  }
+}
+
+/* ── Approach badges ──────────────────────────────────────────────── */
+@layer components {
+  .approach-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold transition-colors;
+  }
+  .approach-badge-function {
+    @apply approach-badge bg-amber-100 text-amber-700 border border-amber-200;
+  }
+  .approach-badge-combined {
+    @apply approach-badge bg-emerald-100 text-emerald-700 border border-emerald-200;
+  }
+}
+
+/* ── Rag badges ───────────────────────────────────────────────────── */
+@layer components {
+  .rag-badge {
+    @apply approach-badge bg-violet-100 text-violet-700 border border-violet-200;
+  }
+  .no-rag-badge {
+    @apply approach-badge bg-gray-100 text-gray-500 border border-gray-200;
+  }
+}
+
+/* ── Cards ────────────────────────────────────────────────────────── */
+@layer components {
+  .card-function {
+    @apply bg-white rounded-xl shadow-sm border-l-4 border-amber-400 p-5 transition-shadow hover:shadow-md;
+  }
+  .card-combined {
+    @apply bg-white rounded-xl shadow-sm border-l-4 border-emerald-400 p-5 transition-shadow hover:shadow-md;
+  }
+  .card-knowledge {
+    @apply bg-violet-50 rounded-lg border border-violet-200 p-4;
+  }
+  .card-synthesis {
+    @apply bg-emerald-50 rounded-lg border border-emerald-200 p-4;
+  }
+  .card-result {
+    @apply bg-white rounded-lg border border-gray-100 p-4 shadow-sm;
+  }
+}
+
+/* ── Tool tags ────────────────────────────────────────────────────── */
+@layer components {
+  .tool-tag {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600 border border-gray-200;
+  }
+}
+
+/* ── Skeleton loading ─────────────────────────────────────────────── */
+@layer components {
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+  .skeleton-line {
+    @apply skeleton h-4 w-full;
+  }
+  .skeleton-line-sm {
+    @apply skeleton h-3 w-3/4;
+  }
+  .skeleton-card {
+    @apply skeleton h-32 w-full rounded-xl;
+  }
+}
+
+/* ── Animations ───────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-stagger > * {
+    opacity: 0;
+    animation: slideUp 0.4s ease-out forwards;
+  }
+  .animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .animate-stagger > *:nth-child(2) { animation-delay: 100ms; }
+  .animate-stagger > *:nth-child(3) { animation-delay: 200ms; }
+  .animate-stagger > *:nth-child(4) { animation-delay: 300ms; }
+  .animate-stagger > *:nth-child(5) { animation-delay: 400ms; }
+}
+
+/* ── Toast ────────────────────────────────────────────────────────── */
+@layer components {
+  .toast {
+    @apply fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium
+           animate-slide-up;
+  }
+  .toast-success {
+    @apply toast bg-emerald-600;
+  }
+  .toast-error {
+    @apply toast bg-red-600;
+  }
+}
+
+/* ── Misc ─────────────────────────────────────────────────────────── */
+@layer components {
+  .section-title {
+    @apply text-lg font-bold text-gray-800 mb-3 flex items-center gap-2;
+  }
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow;
+  }
+  .stat-value {
+    @apply text-3xl font-bold text-gray-900;
+  }
+  .stat-label {
+    @apply text-sm text-gray-500 mt-1;
+  }
+}
