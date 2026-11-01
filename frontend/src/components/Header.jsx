@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Flower2, Zap, Sparkles, BookOpen, Clock } from 'lucide-react';
+import { Flower2, Zap, Sparkles, BookOpen, Clock, Network } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Query', icon: Zap },
   { to: '/compare', label: 'Compare', icon: Sparkles },
+  { to: '/agents', label: 'Agents', icon: Network },
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/history', label: 'History', icon: Clock },
 ];

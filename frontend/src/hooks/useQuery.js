@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { queryIris, compareApproaches } from '../api';
 
-export function useQuery() {
+export function useQuery({ submitFn = queryIris, compareFn = compareApproaches } = {}) {
   const [query, setQuery] = useState('');
   const [approach, setApproach] = useState('function_call');
   const [result, setResult] = useState(null);
@@ -18,7 +18,7 @@ export function useQuery() {
     setResult(null);
 
     try {
-      const data = await queryIris(query.trim(), approachToUse);
+      const data = await submitFn(query.trim(), approachToUse);
       setResult(data);
       resultRef.current = data;
       // Smooth scroll to results
@@ -30,7 +30,7 @@ export function useQuery() {
     } finally {
       setLoading(false);
     }
-  }, [query, approach]);
+  }, [query, approach, submitFn]);
 
   const submitCompare = useCallback(async () => {
     if (!query.trim()) return;
@@ -40,7 +40,7 @@ export function useQuery() {
     setResult(null);
 
     try {
-      const data = await compareApproaches(query.trim());
+      const data = await compareFn(query.trim());
       setResult(data);
       resultRef.current = data;
       setTimeout(() => {
@@ -51,7 +51,7 @@ export function useQuery() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, compareFn]);
 
   return {
     query,

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Query Flow', () => {
   test('should load the homepage', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Iris RAG')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Iris RAG' })).toBeVisible();
     await expect(page.locator('text=Query Iris Dataset')).toBeVisible();
   });
 

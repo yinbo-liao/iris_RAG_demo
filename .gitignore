@@ -31,6 +31,11 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 
+# Playwright
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+
 # IDE
 .vscode/
 .idea/

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import logging
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.models import get_db
@@ -31,35 +28,9 @@ from app.services.iris_service import (
     function_call_processor,
     combined_tools_processor,
 )
+from app.services.audit import log_prediction
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# ── Helpers ──────────────────────────────────────────────────────────
-
-def _log_prediction(
-    db: Session,
-    approach: str,
-    query: str,
-    tools_called: list[str],
-    result_data: dict,
-    rag_used: bool,
-    confidence: Optional[float] = None,
-) -> None:
-    try:
-        log = PredictionLog(
-            approach=approach,
-            query_text=query,
-            tools_called=tools_called,
-            result_data=result_data,
-            rag_used="yes" if rag_used else "no",
-            confidence=confidence,
-        )
-        db.add(log)
-        db.commit()
-    except Exception:
-        logger.exception("Failed to write prediction log")
-        db.rollback()
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
@@ -69,14 +40,14 @@ async def process_query(req: QueryRequest, db: Session = Depends(get_db)):
     """Process a natural-language query using the chosen approach."""
     if req.approach == "function_call":
         result = function_call_processor.process(req.query)
-        _log_prediction(
+        log_prediction(
             db, "function_call", req.query,
             result["tools_called"], result, rag_used=False,
         )
         return result
 
     result = combined_tools_processor.process(req.query)
-    _log_prediction(
+    log_prediction(
         db, "combined_tools", req.query,
         result["tools_called"], result, rag_used=True,
     )
@@ -92,8 +63,8 @@ async def compare_approaches(
     fc = function_call_processor.process(q)
     ct = combined_tools_processor.process(q)
 
-    _log_prediction(db, "function_call", q, fc["tools_called"], fc, rag_used=False)
-    _log_prediction(db, "combined_tools", q, ct["tools_called"], ct, rag_used=True)
+    log_prediction(db, "function_call", q, fc["tools_called"], fc, rag_used=False)
+    log_prediction(db, "combined_tools", q, ct["tools_called"], ct, rag_used=True)
 
     return CompareResponse(query=q, function_call=fc, combined_tools=ct)
 

@@ -44,4 +44,14 @@ export async function getHistory(limit = 20) {
   return data;
 }
 
+export async function runMultiAgent(query) {
+  const { data } = await api.post('/api/agents/analyze', { query });
+  return data;
+}
+
+export async function getAgentRegistry() {
+  const { data } = await api.get('/api/agents/registry');
+  return data;
+}
+
 export default api;

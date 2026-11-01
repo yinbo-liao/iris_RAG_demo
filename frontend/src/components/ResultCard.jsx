@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Zap, Sparkles, ChevronDown, ChevronUp, Copy, Check, Database, Brain } from 'lucide-react';
+import KnowledgeList from './KnowledgeList';
 
 export default function ResultCard({ data, isCompare = false, side = 'left' }) {
   const [expandedSections, setExpandedSections] = useState({ knowledge: true, synthesis: true, results: true });
@@ -154,28 +155,7 @@ export default function ResultCard({ data, isCompare = false, side = 'left' }) {
             </span>
             {expandedSections.knowledge ? <ChevronUp className="w-4 h-4 text-violet-400" /> : <ChevronDown className="w-4 h-4 text-violet-400" />}
           </button>
-          {expandedSections.knowledge && (
-            <div className="space-y-2.5">
-              {data.knowledge.map((k) => (
-                <div key={k.doc_id} className="card-knowledge">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-violet-800">{k.title}</span>
-                    <span className="text-xs text-violet-500 font-medium">
-                      {(k.score * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                  {/* Relevance bar */}
-                  <div className="w-full bg-violet-200 rounded-full h-1.5 mb-2">
-                    <div
-                      className="bg-violet-500 h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(k.score * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-violet-700 leading-relaxed">{k.content.slice(0, 250)}...</p>
-                </div>
-              ))}
-            </div>
-          )}
+          {expandedSections.knowledge && <KnowledgeList documents={data.knowledge} />}
         </div>
       )}
 

@@ -18,7 +18,7 @@ test.describe('Compare Flow', () => {
     await page.goto('/compare');
     await page.fill('textarea', 'compare setosa and versicolor');
     await page.click('text=Compare Both');
-    await expect(page.locator('text=VS')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('VS', { exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   test('should show function call and combined tools result cards', async ({ page }) => {

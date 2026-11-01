@@ -118,3 +118,41 @@ class CompareResponse(BaseModel):
 class SeedResponse(BaseModel):
     message: str
     count: int
+
+
+# ── Multi-agent ──────────────────────────────────────────────────────
+
+class MultiAgentRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000, description="Natural language analytics request")
+
+
+class AgentDefinition(BaseModel):
+    agent: str
+    role: str
+    model: str
+    suggested_model: str
+    permissions: list[str]
+    allowed_inputs: list[str]
+
+
+class AgentRunOut(AgentDefinition):
+    status: str
+    duration_ms: float
+    reasoning: str
+    output: dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None
+
+
+class MultiAgentResponse(BaseModel):
+    run_id: str
+    query: str
+    plan: list[str]
+    agents: list[AgentRunOut]
+    agent_count: int
+    pattern_analysis: dict[str, Any]
+    model_results: list[dict[str, Any]]
+    evaluation: dict[str, Any]
+    knowledge: list[dict[str, Any]]
+    citations: list[dict[str, Any]]
+    final_report: dict[str, Any]
+    duration_ms: float

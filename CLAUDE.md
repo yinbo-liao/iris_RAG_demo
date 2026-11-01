@@ -4,70 +4,108 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Iris RAG is a full-stack application demonstrating two AI query-processing architectures using the Iris flower dataset: **Function Call** (single deterministic tool) vs **Combined Tools** (multi-tool + RAG + synthesis).
+Iris RAG is a full-stack demo of three query-processing architectures over the Iris dataset:
 
-**Stack:** FastAPI + PostgreSQL + React 18 + Vite + Tailwind CSS + Docker
-**Database:** PostgreSQL (production), SQLite in-memory (tests)
-**ML:** scikit-learn RandomForest + TF-IDF vector store
+- **Function Call** — deterministic single-tool dispatch via regex.
+- **Combined Tools** — TF-IDF retrieval + multiple tools + templated synthesis.
+- **Multi-Agent** — a 7-agent orchestrator pipeline (EDA, 3 classifiers, evaluation, RAG, synthesis) with least-privilege input scoping.
+
+**Stack:** FastAPI + SQLAlchemy 2 + Pydantic v2 (backend), React 18 + Vite + Tailwind (frontend), PostgreSQL in Docker or SQLite locally, Playwright for E2E.
+
+**Important:** there are no LLM or API-key calls anywhere. Tool selection is regex matching (`_PATTERNS`), agent reasoning is deterministic Python, and "AI synthesis" is string assembly. Any feature that needs a real model must introduce a provider client and make it injectable/mockable for tests.
 
 ## Commands
 
-### Backend
+### Backend (`backend/`)
 ```bash
-cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-pytest app/tests/ -v                          # Run all tests
-pytest app/tests/test_services.py -v          # Service-specific tests
+uvicorn app.main:app --reload --port 8000     # API on :8000, docs at /docs
+pytest                                        # all tests + coverage (pytest.ini enables --cov)
+pytest --no-cov -q                            # fast run without coverage
+pytest app/tests/test_services.py::TestVectorStore::test_search -v   # single test
 ```
+`ENV` in `backend/.env` selects the database: `development` → `sqlite:///iris_rag.db`, anything else → PostgreSQL at `DATABASE_URL`. Tests never touch either — they inject in-memory SQLite.
 
-### Frontend
+### Frontend (`frontend/`)
 ```bash
-cd frontend
 npm install
-npm run dev                                   # Dev server at localhost:5173
-npm test                                      # vitest (33 tests)
+npm run dev                                   # Vite on :5173
+npm test                                      # vitest run (setup: src/tests/setup.js)
+npm run test:watch
+npx vitest run src/tests/components/QueryForm.test.jsx   # single file
+npm run build
 ```
 
-### Docker (full stack)
+### Full stack / E2E
 ```bash
-docker-compose up --build
-# Frontend: http://localhost:5173
-# Backend:  http://localhost:8000
-# API Docs: http://localhost:8000/docs
+docker-compose up --build                     # db :5432, backend :8000, frontend :5173
+cd e2e && npm install
+npx playwright install chromium               # one-time browser download
+npx playwright test                           # backend must already be running at :8000
+npx playwright test tests/agent-flow.spec.js  # single spec
+npx playwright test --headed                  # watch it run
 ```
+`e2e/` has its own `package.json` (`@playwright/test` only). The Playwright `webServer` starts Vite at :5173 automatically; it does **not** start the backend, so run `uvicorn app.main:app --port 8000` first. The pipeline spec waits up to 60s because each run trains four estimators.
 
 ## Architecture
 
+### Backend
 ```
-Frontend (React + Vite)
-  ├── QueryPage    — single query, one approach at a time
-  ├── ComparePage  — side-by-side Function Call vs Combined Tools
-  ├── KnowledgePage — dataset stats, feature ranges, RAG documents
-  └── HistoryPage  — past queries with expandable details
-
-Backend (FastAPI)
-  ├── main.py              — lifespan, CORS, health check
-  ├── config.py            — pydantic-settings (DATABASE_URL)
-  ├── models/__init__.py   — lazy engine (get_engine/override_engine)
-  ├── models/models.py     — PredictionLog, KnowledgeDoc, IrisSample
-  ├── routers/api.py       — 7 endpoints under /api prefix
-  ├── services/iris_service.py  — ML model, VectorStore, 6 tools, 2 processors
-  └── schemas/schemas.py   — Pydantic request/response models
+app/
+├── main.py                 # app factory, lifespan create_all, CORS, /health
+├── config.py               # pydantic-settings Settings; get_database_url() picks SQLite vs Postgres
+├── models/
+│   ├── __init__.py         # Base, lazy get_engine()/get_session_factory(), override_engine(), get_db
+│   └── models.py           # PredictionLog, KnowledgeDoc, IrisSample
+├── routers/api.py          # query/compare/tools/knowledge/stats/history under /api
+├── routers/agents_api.py   # /api/agents/registry and /api/agents/analyze
+├── schemas/schemas.py      # Pydantic request/response models
+├── services/iris_service.py  # data, model, vector store, tools, both processors
+├── services/audit.py       # shared PredictionLog writer + numpy→JSON sanitizer
+└── agents/
+    ├── base.py             # AgentRun audit record, BaseAgent with allowed_inputs scoping
+    ├── data_pattern_agent.py  # EDA: stats, correlations, Fisher scores, outliers, separability
+    ├── model_agents.py     # RandomForestAgent, SVMAgent, XGBoostAgent (shared metric contract)
+    ├── evaluation_agent.py # weighted ranking; reads model_results only
+    ├── rag_agent.py        # TF-IDF retrieval + citations; reads query/evaluation/pattern only
+    └── orchestrator.py     # MainOrchestratorAgent: plan → parallel agents → eval → RAG → report
 ```
 
-### Key architectural patterns
+**Import-time initialization:** `iris_service.py` loads the Iris dataset, fits a `StandardScaler` and a `RandomForestClassifier`, and fits the `TfidfVectorizer` at module import. Importing the module is expensive and any import error breaks every endpoint and test. Keep new heavy work lazy (initialize on first use) rather than adding more module-level side effects.
 
-- **Lazy engine creation** in `models/__init__.py` — `get_engine()` creates the engine on first call; `override_engine()` injects SQLite for tests
-- **TF-IDF VectorStore** — in-memory, cosine similarity, `search(query, top_k)` returns ranked docs with scores; filters results below 0.01 threshold
-- **6 Tools** with JSON schemas in `TOOL_SCHEMAS` (predict_species, get_species_stats, filter_flowers, compare_species, retrieve_knowledge, get_all_species)
-- **2 Processors**: `FunctionCallProcessor` (single tool via regex matching) and `CombinedToolsProcessor` (RAG → multi-tool → synthesize)
-- **Test DB**: Uses `StaticPool` with `sqlite://` (not `:memory:`) so all sessions share one connection — critical for test isolation
+**DB indirection:** `models/__init__.py` uses module globals `_engine`/`_SessionLocal`. `override_engine()` swaps both; the `client` fixture in `app/tests/conftest.py` calls it and imports `app.main` *inside the fixture* to control import order. Preserve that ordering.
 
-### Frontend patterns
+**Tool registry:** `TOOL_SCHEMAS` (JSON schemas exposed via `/api/tools`) and `TOOL_MAP` (callables) must stay in sync by name. `_exec_tool` extracts parameters from free text with regex, so tools degrade to `Insufficient parameters` rather than raising.
 
-- `useQuery()` hook manages query state, approach selection, loading, error, and result — shared by QueryPage and ComparePage
-- `useStats()` hook fetches `/api/stats` with caching
-- `ResultCard` renders differently for Function Call (single JSON, yellow border) vs Combined Tools (multi-result, knowledge + synthesis, green border)
-- Color system: Function=amber, Combined=emerald, RAG=violet
-- Keyboard shortcuts: Enter=submit, Ctrl+Enter=compare
+**Processors:** `FunctionCallProcessor` executes only the first regex-matched tool; `CombinedToolsProcessor` always retrieves knowledge, strips `retrieve_knowledge` from the tool list, executes the rest, then synthesizes. `/api/query` returns a union (`FunctionCallResponse | CombinedToolsResponse`) and logs each call to `prediction_logs`.
+
+**Multi-agent pipeline:** `MainOrchestratorAgent.analyze()` runs the EDA agent and three model agents concurrently in a `ThreadPoolExecutor`, then evaluation, then RAG, then report synthesis. Each `BaseAgent` declares `allowed_inputs`; `execute()` copies only those keys, so e.g. the Evaluation Agent physically cannot see the dataset or `model_results` from a different run. Agents never raise out of `execute()` — failures become `status="error"` audit records. The XGBoost agent uses `xgboost` when installed and otherwise falls back to sklearn `HistGradientBoostingClassifier`, declaring the engine in its output — do not report it as XGBoost without checking `engine`.
+
+**Tests use `StaticPool` with `sqlite://`** (not `:memory:`) so every session shares one connection — required for data seeded in one fixture to be visible to the app's session.
+
+### Frontend
+```
+src/
+├── api.js                  # axios instance, baseURL = VITE_API_URL || http://localhost:8000
+├── App.jsx                 # BrowserRouter; routes: /, /compare, /knowledge, /history
+├── hooks/useQuery.js       # query/approach/result/loading/error + submitQuery/submitCompare
+├── hooks/useStats.js
+├── components/             # Header, QueryForm, ResultCard, EmptyState, ErrorBoundary, LoadingSpinner
+│                           # AgentAuditCard, ModelRankingTable (multi-agent page)
+└── pages/                  # QueryPage, ComparePage, AgentPage, KnowledgePage, HistoryPage
+```
+
+- `useQuery()` owns all query state and is shared by `QueryPage` and `ComparePage`; changes to submit behavior belong there, not in the pages.
+- `ResultCard` branches on `approach`: Function Call shows one `result` object (amber), Combined Tools shows `results[]` + `knowledge[]` + `synthesis` (emerald), RAG accents are violet. Colors are Tailwind tokens `approach-function|combined|rag` in `tailwind.config.js`.
+- Tests mock `../api` with `vi.mock`; keep API functions centralized in `api.js` so mocks stay simple.
+- `AgentPage` fetches the registry on mount and tolerates failure; its tests mock `getAgentRegistry`, using a never-resolving promise where the roster is irrelevant.
+
+## Gotchas
+
+- `pytest.ini` always writes coverage to `backend/htmlcov/`; use `--no-cov` for quick loops.
+- `frontend/htmlcov/` is a stale copied backend report, not generated by vitest — do not edit or treat it as frontend coverage.
+- `/api/stats` hardcodes feature ranges and averages in `api.py` rather than deriving them from `df`; update both if the dataset changes.
+- The Docker backend mounts `./backend/app` read-only-ish over the image and runs `--reload`; dependency changes require a rebuild.
+- CORS in `main.py` only allows `localhost:5173` / `127.0.0.1:5173`.
+- Agent/orchestrator tests take ~20s because they train six estimators (including 5-fold CV). Use `pytest app/tests/test_agents.py -q` for a focused loop.
+- `/api/agents/analyze` is a sync endpoint (runs in FastAPI's threadpool) because the pipeline is CPU-bound; keep it sync if you extend it. The frontend axios timeout is 30s, which covers the ~5s pipeline.

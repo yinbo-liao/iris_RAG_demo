@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agent Iris Analytics System with RAG</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:1200px;margin:auto;padding:20px;line-height:1.6;color:#222}
+h1,h2,h3{color:#1f4e79}
+pre{background:#f4f4f4;padding:12px;border-radius:6px;overflow:auto}
+.section{margin-bottom:30px}
+.card{border:1px solid #ddd;padding:15px;border-radius:8px;margin:10px 0}
+</style>
+</head>
+<body>
+<h1>Multi-Agent Iris Analytics System with RAG</h1>
+<p>Enterprise-style Agentic AI architecture for Iris dataset analysis, machine learning, evaluation, and knowledge retrieval.</p>
+
+<h2>Architecture</h2>
+<pre>
+User
+  |
+Main Orchestrator Agent
+  |
+-------------------------------------------------
+|            |            |            |
+Pattern      RF Agent     SVM Agent    XGBoost Agent
+Agent
+                 |
+                 v
+          Evaluation Agent
+                 |
+                 v
+          Final Summary
+
+Optional: RAG Knowledge Agent
+</pre>
+
+<h2>Main Orchestrator Agent</h2>
+<div class="card">
+Role: Task planning and delegation.<br>
+Model: GPT-5 / advanced reasoning model.<br>
+Permissions: Read requests, invoke subagents, collect results.
+</div>
+
+<h2>Data Pattern Analysis Agent</h2>
+<div class="card">
+Role: EDA, correlations, class separation, outlier detection.<br>
+Model: Medium model.<br>
+Permissions: Read Iris dataset and generate statistics.
+</div>
+
+<h2>Machine Learning Agents</h2>
+<div class="card"><b>Random Forest Agent</b><br>Train Random Forest classifier and return metrics.</div>
+<div class="card"><b>SVM Agent</b><br>Train SVM classifier and return metrics.</div>
+<div class="card"><b>XGBoost Agent</b><br>Train XGBoost classifier and return metrics.</div>
+
+<h2>Evaluation Agent</h2>
+<div class="card">
+Role: Compare model performance using Accuracy, Precision, Recall, F1-score, Confusion Matrix and Cross Validation.<br>
+Model: Medium reasoning model.<br>
+Permissions: Read model outputs only.
+</div>
+
+<h2>RAG Knowledge Agent</h2>
+<div class="card">
+Role: Retrieve botanical knowledge and ML explanations from vector database.<br>
+Knowledge Sources: FAISS, ChromaDB, pgvector, scientific references.<br>
+Permissions: Read-only access to vector store.
+</div>
+
+<h2>Workflow</h2>
+<ol>
+<li>User submits Iris analysis request.</li>
+<li>Main Agent delegates EDA and model training tasks.</li>
+<li>Subagents execute in parallel.</li>
+<li>Evaluation Agent ranks models.</li>
+<li>RAG Agent enriches explanations.</li>
+<li>Main Agent produces executive summary.</li>
+</ol>
+
+<h2>Production Benefits</h2>
+<ul>
+<li>Task decomposition</li>
+<li>Parallel execution</li>
+<li>Least-privilege security model</li>
+<li>Cost-optimized model allocation</li>
+<li>Explainable AI through RAG</li>
+<li>Enterprise-ready architecture</li>
+</ul>
+</body>
+</html>
