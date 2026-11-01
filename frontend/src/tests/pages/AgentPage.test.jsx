@@ -8,8 +8,6 @@ import { runMultiAgent, getAgentRegistry } from '../../api';
 vi.mock('../../api', () => ({
   runMultiAgent: vi.fn(),
   getAgentRegistry: vi.fn(),
-  queryIris: vi.fn(),
-  compareApproaches: vi.fn(),
 }));
 
 const agentRun = {
@@ -110,9 +108,8 @@ describe('AgentPage', () => {
     );
     await user.click(screen.getByRole('button', { name: /run multi-agent analysis/i }));
 
-    // useQuery passes the (unused) approach argument as its second parameter.
     await waitFor(() =>
-      expect(runMultiAgent).toHaveBeenCalledWith('Analyze Iris dataset', expect.anything())
+      expect(runMultiAgent).toHaveBeenCalledWith('Analyze Iris dataset')
     );
 
     expect(await screen.findByText('Recommended classifier: SVM')).toBeInTheDocument();

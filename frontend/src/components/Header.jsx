@@ -1,9 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { Flower2, Zap, Sparkles, BookOpen, Clock, Network } from 'lucide-react';
+import { Flower2, BookOpen, Clock, Network } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Query', icon: Zap },
-  { to: '/compare', label: 'Compare', icon: Sparkles },
   { to: '/agents', label: 'Agents', icon: Network },
   { to: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { to: '/history', label: 'History', icon: Clock },
@@ -15,13 +13,13 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2.5 group">
+          <NavLink to="/agents" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <Flower2 className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">Iris RAG</h1>
-              <p className="text-xs text-gray-400 -mt-0.5">Function Call vs Combined</p>
+              <p className="text-xs text-gray-400 -mt-0.5">Multi-Agent Analytics</p>
             </div>
           </NavLink>
 
@@ -31,7 +29,6 @@ export default function Header() {
               <NavLink
                 key={to}
                 to={to}
-                end={to === '/'}
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive

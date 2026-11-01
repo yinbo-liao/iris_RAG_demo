@@ -9,11 +9,6 @@ from sqlalchemy.orm import Session
 from app.models import get_db
 from app.models.models import KnowledgeDoc, PredictionLog
 from app.schemas.schemas import (
-    QueryRequest,
-    FunctionCallResponse,
-    CombinedToolsResponse,
-    CompareResponse,
-    ToolSchema,
     KnowledgeDocOut,
     StatsResponse,
     HistoryEntry,
@@ -24,63 +19,14 @@ from app.schemas.schemas import (
 )
 from app.services.iris_service import (
     df,
-    TOOL_SCHEMAS,
     KNOWLEDGE_DOCS,
-    iris,
-    function_call_processor,
-    combined_tools_processor,
     rebuild_vector_store,
 )
-from app.services.audit import log_prediction
 
 router = APIRouter()
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
-
-@router.post("/query", response_model=FunctionCallResponse | CombinedToolsResponse)
-def process_query(req: QueryRequest, db: Session = Depends(get_db)):
-    """Process a natural-language query using the chosen approach.
-
-    Sync endpoint on purpose: the TF-IDF/RF pipeline and the audit commit are
-    blocking work, so FastAPI should run it in the threadpool instead of the loop.
-    """
-    if req.approach == "function_call":
-        result = function_call_processor.process(req.query)
-        log_prediction(
-            db, "function_call", req.query,
-            result["tools_called"], result, rag_used=False,
-        )
-        return result
-
-    result = combined_tools_processor.process(req.query)
-    log_prediction(
-        db, "combined_tools", req.query,
-        result["tools_called"], result, rag_used=True,
-    )
-    return result
-
-
-@router.get("/compare", response_model=CompareResponse)
-def compare_approaches(
-    q: str = Query(..., min_length=1, max_length=2000, alias="query"),
-    db: Session = Depends(get_db),
-):
-    """Run the same query through BOTH approaches and return side-by-side results."""
-    fc = function_call_processor.process(q)
-    ct = combined_tools_processor.process(q)
-
-    log_prediction(db, "function_call", q, fc["tools_called"], fc, rag_used=False)
-    log_prediction(db, "combined_tools", q, ct["tools_called"], ct, rag_used=True)
-
-    return CompareResponse(query=q, function_call=fc, combined_tools=ct)
-
-
-@router.get("/tools", response_model=list[ToolSchema])
-async def list_tools():
-    """Return all available tool schemas."""
-    return TOOL_SCHEMAS
-
 
 @router.get("/knowledge", response_model=list[KnowledgeDocOut])
 def list_knowledge(db: Session = Depends(get_db)):
@@ -116,7 +62,6 @@ def get_stats(db: Session = Depends(get_db)):
         species_distribution=dist,
         feature_ranges=feature_ranges,
         knowledge_doc_count=doc_count,
-        tools_count=len(TOOL_SCHEMAS),
     )
 
 

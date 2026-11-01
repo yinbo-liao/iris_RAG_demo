@@ -24,21 +24,6 @@ api.interceptors.response.use(
   )
 );
 
-export async function queryIris(query, approach) {
-  const { data } = await api.post('/api/query', { query, approach });
-  return data;
-}
-
-export async function compareApproaches(query) {
-  const { data } = await api.get('/api/compare', { params: { query } });
-  return data;
-}
-
-export async function getTools() {
-  const { data } = await api.get('/api/tools');
-  return data;
-}
-
 export async function getKnowledge() {
   const { data } = await api.get('/api/knowledge');
   return data;

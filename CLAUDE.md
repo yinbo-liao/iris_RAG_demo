@@ -4,15 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Iris RAG is a full-stack demo of three query-processing architectures over the Iris dataset:
-
-- **Function Call** — deterministic single-tool dispatch via regex.
-- **Combined Tools** — TF-IDF retrieval + multiple tools + templated synthesis.
-- **Multi-Agent** — a 7-agent orchestrator pipeline (EDA, 3 classifiers, evaluation, RAG, synthesis) with least-privilege input scoping.
+Iris RAG is a full-stack demo of a **Multi-Agent** query-processing architecture over the Iris dataset: a 7-agent orchestrator pipeline (EDA, 3 classifiers, evaluation, RAG, synthesis) with least-privilege input scoping. The UI exposes multi-agent analytics, the knowledge base, and query history only.
 
 **Stack:** FastAPI + SQLAlchemy 2 + Pydantic v2 (backend), React 18 + Vite + Tailwind (frontend), PostgreSQL in Docker or SQLite locally, Playwright for E2E.
 
-**Important:** there are no LLM or API-key calls anywhere. Tool selection is regex matching (`_PATTERNS`), agent reasoning is deterministic Python, and "AI synthesis" is string assembly. Any feature that needs a real model must introduce a provider client and make it injectable/mockable for tests.
+**Important:** there are no LLM or API-key calls anywhere. Agent reasoning is deterministic Python and the final report is string assembly. Any feature that needs a real model must introduce a provider client and make it injectable/mockable for tests.
 
 ## Commands
 
@@ -22,7 +18,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000     # API on :8000, docs at /docs
 pytest                                        # all tests + coverage (pytest.ini enables --cov)
 pytest --no-cov -q                            # fast run without coverage
-pytest app/tests/test_services.py::TestVectorStore::test_search -v   # single test
+pytest app/tests/test_services.py::TestVectorStore::test_search_returns_results -v   # single test
 ```
 `ENV` in `backend/.env` selects the database: `development` → `sqlite:///iris_rag.db`, anything else → PostgreSQL at `DATABASE_URL`. Tests never touch either — they inject in-memory SQLite.
 
@@ -32,7 +28,7 @@ npm install
 npm run dev                                   # Vite on :5173
 npm test                                      # vitest run (setup: src/tests/setup.js)
 npm run test:watch
-npx vitest run src/tests/components/QueryForm.test.jsx   # single file
+npx vitest run src/tests/components/Header.test.jsx      # single file
 npm run build
 ```
 
@@ -57,10 +53,10 @@ app/
 ├── models/
 │   ├── __init__.py         # Base, lazy get_engine()/get_session_factory(), override_engine(), get_db
 │   └── models.py           # PredictionLog, KnowledgeDoc, IrisSample
-├── routers/api.py          # query/compare/tools/knowledge/stats/history under /api
+├── routers/api.py          # knowledge/stats/history/seed under /api
 ├── routers/agents_api.py   # /api/agents/registry and /api/agents/analyze
 ├── schemas/schemas.py      # Pydantic request/response models
-├── services/iris_service.py  # data, model, vector store, tools, both processors
+├── services/iris_service.py  # dataset, knowledge base, TF-IDF vector store
 ├── services/audit.py       # shared PredictionLog writer + numpy→JSON sanitizer
 └── agents/
     ├── base.py             # AgentRun audit record, BaseAgent with allowed_inputs scoping
@@ -71,13 +67,9 @@ app/
     └── orchestrator.py     # MainOrchestratorAgent: plan → parallel agents → eval → RAG → report
 ```
 
-**Import-time initialization:** `iris_service.py` loads the Iris dataset, fits a `StandardScaler` and a `RandomForestClassifier`, and fits the `TfidfVectorizer` at module import. Importing the module is expensive and any import error breaks every endpoint and test. Keep new heavy work lazy (initialize on first use) rather than adding more module-level side effects.
+**Import-time initialization:** `iris_service.py` loads the Iris dataset and fits the `TfidfVectorizer` at module import. Agents import this module at import time too, so any error there breaks every endpoint and test. Keep new heavy work lazy (initialize on first use) rather than adding more module-level side effects.
 
 **DB indirection:** `models/__init__.py` uses module globals `_engine`/`_SessionLocal`. `override_engine()` swaps both; the `client` fixture in `app/tests/conftest.py` calls it and imports `app.main` *inside the fixture* to control import order. Preserve that ordering.
-
-**Tool registry:** `TOOL_SCHEMAS` (JSON schemas exposed via `/api/tools`) and `TOOL_MAP` (callables) must stay in sync by name. `_exec_tool` extracts parameters from free text with regex, so tools degrade to `Insufficient parameters` rather than raising.
-
-**Processors:** `FunctionCallProcessor` executes only the first regex-matched tool; `CombinedToolsProcessor` always retrieves knowledge, strips `retrieve_knowledge` from the tool list, executes the rest, then synthesizes. `/api/query` returns a union (`FunctionCallResponse | CombinedToolsResponse`) and logs each call to `prediction_logs`.
 
 **Multi-agent pipeline:** `MainOrchestratorAgent.analyze()` runs the EDA agent and three model agents concurrently in a `ThreadPoolExecutor`, then evaluation, then RAG, then report synthesis. Each `BaseAgent` declares `allowed_inputs`; `execute()` copies only those keys, so e.g. the Evaluation Agent physically cannot see the dataset or `model_results` from a different run. Agents never raise out of `execute()` — failures become `status="error"` audit records. The XGBoost agent uses `xgboost` when installed and otherwise falls back to sklearn `HistGradientBoostingClassifier`, declaring the engine in its output — do not report it as XGBoost without checking `engine`.
 
@@ -87,16 +79,16 @@ app/
 ```
 src/
 ├── api.js                  # axios instance, baseURL = VITE_API_URL || http://localhost:8000
-├── App.jsx                 # BrowserRouter; routes: /, /compare, /knowledge, /history
-├── hooks/useQuery.js       # query/approach/result/loading/error + submitQuery/submitCompare
+├── App.jsx                 # BrowserRouter; / redirects to /agents; routes: /agents, /knowledge, /history
+├── hooks/useQuery.js       # query/result/loading/error + submitQuery (defaults to runMultiAgent)
 ├── hooks/useStats.js
-├── components/             # Header, QueryForm, ResultCard, EmptyState, ErrorBoundary, LoadingSpinner
+├── components/             # Header, EmptyState, ErrorBoundary, LoadingSpinner, KnowledgeList
 │                           # AgentAuditCard, ModelRankingTable (multi-agent page)
-└── pages/                  # QueryPage, ComparePage, AgentPage, KnowledgePage, HistoryPage
+└── pages/                  # AgentPage, KnowledgePage, HistoryPage
 ```
 
-- `useQuery()` owns all query state and is shared by `QueryPage` and `ComparePage`; changes to submit behavior belong there, not in the pages.
-- `ResultCard` branches on `approach`: Function Call shows one `result` object (amber), Combined Tools shows `results[]` + `knowledge[]` + `synthesis` (emerald), RAG accents are violet. Colors are Tailwind tokens `approach-function|combined|rag` in `tailwind.config.js`.
+- `useQuery()` owns the multi-agent query state and is used by `AgentPage`; change submit behavior there, not in the page.
+- `HistoryPage` still renders `function_call` / `combined_tools` badges for legacy rows in `prediction_logs`; the `approach-badge-*` CSS classes must stay for that reason.
 - Tests mock `../api` with `vi.mock`; keep API functions centralized in `api.js` so mocks stay simple.
 - `AgentPage` fetches the registry on mount and tolerates failure; its tests mock `getAgentRegistry`, using a never-resolving promise where the roster is irrelevant.
 

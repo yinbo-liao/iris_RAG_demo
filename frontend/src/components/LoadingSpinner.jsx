@@ -1,7 +1,7 @@
 export default function LoadingSpinner() {
   return (
     <div className="animate-fade-in space-y-4 mt-6">
-      {/* Skeleton for ResultCard header */}
+      {/* Skeleton for a result card header */}
       <div className="bg-white rounded-xl shadow-sm border-l-4 border-gray-200 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="skeleton h-6 w-28 rounded-full" />

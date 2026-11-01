@@ -4,7 +4,7 @@ import { getKnowledge } from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorBoundary from '../components/ErrorBoundary';
 import {
-  BarChart3, Database, Wrench, BookOpen,
+  BarChart3, BookOpen,
   ChevronDown, ChevronUp, Flower2,
 } from 'lucide-react';
 
@@ -46,7 +46,7 @@ export default function KnowledgePage() {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard
               icon={BarChart3}
               label="Total Samples"
@@ -64,12 +64,6 @@ export default function KnowledgePage() {
               label="Knowledge Docs"
               value={stats.knowledge_doc_count}
               color="bg-violet-50 text-violet-600"
-            />
-            <StatCard
-              icon={Wrench}
-              label="Available Tools"
-              value={stats.tools_count}
-              color="bg-emerald-50 text-emerald-600"
             />
           </div>
         )}

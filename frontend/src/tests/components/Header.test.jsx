@@ -19,19 +19,20 @@ describe('Header', () => {
         <Header />
       </MemoryRouter>
     );
-    expect(screen.getByText('Query')).toBeInTheDocument();
-    expect(screen.getByText('Compare')).toBeInTheDocument();
+    expect(screen.getByText('Agents')).toBeInTheDocument();
     expect(screen.getByText('Knowledge')).toBeInTheDocument();
     expect(screen.getByText('History')).toBeInTheDocument();
+    expect(screen.queryByText('Query')).not.toBeInTheDocument();
+    expect(screen.queryByText('Compare')).not.toBeInTheDocument();
   });
 
   it('highlights active route', () => {
     render(
-      <MemoryRouter initialEntries={['/compare']}>
+      <MemoryRouter initialEntries={['/agents']}>
         <Header />
       </MemoryRouter>
     );
-    const compareLink = screen.getByText('Compare').closest('a');
-    expect(compareLink.className).toContain('bg-violet-50');
+    const agentsLink = screen.getByText('Agents').closest('a');
+    expect(agentsLink.className).toContain('bg-violet-50');
   });
 });

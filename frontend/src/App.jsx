@@ -1,8 +1,6 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
-import QueryPage from './pages/QueryPage';
-import ComparePage from './pages/ComparePage';
 import KnowledgePage from './pages/KnowledgePage';
 import HistoryPage from './pages/HistoryPage';
 import AgentPage from './pages/AgentPage';
@@ -15,8 +13,7 @@ export default function App() {
         <main className="flex-1 pb-12">
           <ErrorBoundary>
             <Routes>
-              <Route path="/" element={<QueryPage />} />
-              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/" element={<Navigate to="/agents" replace />} />
               <Route path="/agents" element={<AgentPage />} />
               <Route path="/knowledge" element={<KnowledgePage />} />
               <Route path="/history" element={<HistoryPage />} />
@@ -38,7 +35,7 @@ export default function App() {
         {/* Footer */}
         <footer className="border-t border-gray-200 bg-white py-4">
           <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-400">
-            Iris RAG — Demonstrating Function Call vs Combined Tools (RAG) · Iris Dataset (Fisher, 1936)
+            Iris RAG — Multi-Agent Analytics over the Iris Dataset (Fisher, 1936)
           </div>
         </footer>
       </div>
