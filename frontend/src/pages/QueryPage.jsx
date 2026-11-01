@@ -26,7 +26,7 @@ export default function QueryPage() {
         approach={approach}
         setApproach={setApproach}
         loading={loading}
-        onSubmit={() => submitQuery()}
+        onSubmit={(explicitQuery) => submitQuery(undefined, explicitQuery)}
         onCompare={null}
         showCompare={false}
       />

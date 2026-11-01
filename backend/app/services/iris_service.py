@@ -155,6 +155,14 @@ class VectorStore:
 
 vector_store = VectorStore(KNOWLEDGE_DOCS)
 
+
+def rebuild_vector_store(documents: list[dict[str, str]]) -> VectorStore:
+    """Replace the module-level vector store so retrieval reflects DB-backed docs."""
+    global vector_store
+    if documents:
+        vector_store = VectorStore(documents)
+    return vector_store
+
 # ══════════════════════════════════════════════════════════════════════
 # Tool registry
 # ══════════════════════════════════════════════════════════════════════
@@ -294,6 +302,34 @@ def _get_species_stats(species: str) -> dict[str, Any]:
     return {"species": species, "sample_count": len(subset), "statistics": stats}
 
 
+_FEATURE_COLUMNS = {
+    "sepal_length": "sepal length (cm)",
+    "sepal_width": "sepal width (cm)",
+    "petal_length": "petal length (cm)",
+    "petal_width": "petal width (cm)",
+    # Accept the raw dataframe column names as well.
+    "sepal length (cm)": "sepal length (cm)",
+    "sepal width (cm)": "sepal width (cm)",
+    "petal length (cm)": "petal length (cm)",
+    "petal width (cm)": "petal width (cm)",
+}
+
+_FEATURE_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\bsepal[ _-]*length\b", re.I), "sepal_length"),
+    (re.compile(r"\bsepal[ _-]*width\b", re.I), "sepal_width"),
+    (re.compile(r"\bpetal[ _-]*length\b", re.I), "petal_length"),
+    (re.compile(r"\bpetal[ _-]*width\b", re.I), "petal_width"),
+]
+
+
+def _extract_feature(text: str) -> Optional[str]:
+    """Extract an Iris feature name from text (e.g. 'petal length' → petal_length)."""
+    for pattern, feature in _FEATURE_PATTERNS:
+        if pattern.search(text):
+            return feature
+    return None
+
+
 def _filter_flowers(
     feature: Optional[str] = None,
     min_val: Optional[float] = None,
@@ -303,10 +339,11 @@ def _filter_flowers(
     filtered = df.copy()
     if species:
         filtered = filtered[filtered["species"] == species]
-    if feature and min_val is not None:
-        filtered = filtered[filtered[feature] >= min_val]
-    if feature and max_val is not None:
-        filtered = filtered[filtered[feature] <= max_val]
+    column = _FEATURE_COLUMNS.get(feature) if feature else None
+    if column and min_val is not None:
+        filtered = filtered[filtered[column] >= min_val]
+    if column and max_val is not None:
+        filtered = filtered[filtered[column] <= max_val]
     return {
         "count": len(filtered),
         "samples": filtered.head(10).to_dict(orient="records"),
@@ -366,17 +403,28 @@ TOOL_MAP = {
     "get_all_species": _get_all_species,
 }
 
+# Keep the exposed schemas and the dispatchable callables in lockstep.
+_schema_names = {schema["name"] for schema in TOOL_SCHEMAS}
+if _schema_names != set(TOOL_MAP):
+    raise RuntimeError(
+        "TOOL_SCHEMAS and TOOL_MAP are out of sync: "
+        f"schemas-only={sorted(_schema_names - set(TOOL_MAP))}, "
+        f"callables-only={sorted(set(TOOL_MAP) - _schema_names)}"
+    )
+
 # ══════════════════════════════════════════════════════════════════════
 # Query pattern matching
 # ══════════════════════════════════════════════════════════════════════
 
 _PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"(\d+\.?\d*)\s*[,;\s]+"), "predict_species"),
     (re.compile(r"\b(predict|classify|identify)\b", re.I), "predict_species"),
     (re.compile(r"\bstats?\b.*\b(setosa|versicolor|virginica)\b|\b(setosa|versicolor|virginica)\b.*\bstats?\b", re.I), "get_species_stats"),
     (re.compile(r"\b(compare|vs\.?|versus|difference)\b.*\b(setosa|versicolor|virginica)\b.*\b(setosa|versicolor|virginica)\b", re.I), "compare_species"),
     (re.compile(r"\b(filter|find|show)\b", re.I), "filter_flowers"),
     (re.compile(r"\b(all|list|every|summary)\b.*\bspecies\b|\bspecies\b.*\b(all|list|every|summary)\b", re.I), "get_all_species"),
+    # A bare list of four measurements implies a prediction. Requiring all four
+    # keeps numeric filter/stats queries from being routed here first.
+    (re.compile(r"(\d+\.?\d*)\s*[,;\s]+(\d+\.?\d*)\s*[,;\s]+(\d+\.?\d*)\s*[,;\s]+(\d+\.?\d*)"), "predict_species"),
 ]
 
 
@@ -419,6 +467,9 @@ def _exec_tool(name: str, query: str) -> dict[str, Any]:
             return {"tool": name, "result": _compare_species(species_list[0], species_list[1])}
         if name == "filter_flowers":
             kwargs: dict[str, Any] = {}
+            feature = _extract_feature(query)
+            if feature:
+                kwargs["feature"] = feature
             if species_list:
                 kwargs["species"] = species_list[0]
             if len(numbers) >= 2:

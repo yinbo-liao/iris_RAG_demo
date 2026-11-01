@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import time
 from dataclasses import asdict, dataclass, field
@@ -80,7 +81,13 @@ class BaseAgent:
         )
 
     def execute(self, full_context: dict[str, Any]) -> AgentRun:
-        scoped = {key: full_context[key] for key in self.allowed_inputs if key in full_context}
+        # Deep copy so an agent cannot mutate nested structures it was granted
+        # read-only access to (the scoping contract is value-level, not just key-level).
+        scoped = {
+            key: copy.deepcopy(full_context[key])
+            for key in self.allowed_inputs
+            if key in full_context
+        }
         start = time.perf_counter()
         status = "success"
         error: str | None = None

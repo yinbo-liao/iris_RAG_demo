@@ -6,12 +6,22 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+function errorMessage(detail, fallback) {
+  // FastAPI validation errors (422) return a list of {loc, msg, type} objects.
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => item?.msg || JSON.stringify(item));
+    if (messages.length) return messages.join('; ');
+  }
+  if (typeof detail === 'string' && detail) return detail;
+  if (detail && typeof detail === 'object') return JSON.stringify(detail);
+  return fallback || 'An unexpected error occurred';
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const message = error.response?.data?.detail || error.message || 'An unexpected error occurred';
-    return Promise.reject(new Error(message));
-  }
+  (error) => Promise.reject(
+    new Error(errorMessage(error.response?.data?.detail, error.message))
+  )
 );
 
 export async function queryIris(query, approach) {
@@ -41,6 +51,11 @@ export async function getStats() {
 
 export async function getHistory(limit = 20) {
   const { data } = await api.get('/api/history', { params: { limit } });
+  return data;
+}
+
+export async function clearHistory() {
+  const { data } = await api.delete('/api/history');
   return data;
 }
 

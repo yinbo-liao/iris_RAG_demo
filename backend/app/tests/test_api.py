@@ -163,3 +163,13 @@ class TestHistoryEndpoint:
             })
         resp = client.get("/api/history?limit=2")
         assert len(resp.json()) == 2
+
+    def test_clear_history(self, client, db_session):
+        client.post("/api/query", json={
+            "query": "delete me",
+            "approach": "function_call",
+        })
+        resp = client.delete("/api/history")
+        assert resp.status_code == 200
+        assert resp.json()["deleted"] >= 1
+        assert client.get("/api/history").json() == []

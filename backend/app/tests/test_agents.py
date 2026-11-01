@@ -111,6 +111,28 @@ class TestEvaluationAgent:
         assert out["ranking"] == []
         assert out["best_model"] is None
 
+    def test_xgboost_fallback_is_labelled_honestly(self):
+        results = [
+            {"model": "XGBoost",
+             "engine": "sklearn.HistGradientBoostingClassifier (xgboost-compatible fallback)",
+             "metrics": {"accuracy": 0.95, "precision": 0.95, "recall": 0.95, "f1": 0.95}},
+            {"model": "SVM", "engine": "sklearn.svm.SVC",
+             "metrics": {"accuracy": 0.90, "precision": 0.90, "recall": 0.90, "f1": 0.90}},
+        ]
+        best = EvaluationAgent().execute({"model_results": results}).output["ranked_models"][0]
+        assert best["model"] == "XGBoost"
+        assert best["engine"].startswith("sklearn.")
+        assert best["display_name"] == "Gradient Boosting (XGBoost fallback)"
+
+    def test_real_xgboost_keeps_its_name(self):
+        results = [{
+            "model": "XGBoost",
+            "engine": "xgboost.XGBClassifier",
+            "metrics": {"accuracy": 0.95, "precision": 0.95, "recall": 0.95, "f1": 0.95},
+        }]
+        best = EvaluationAgent().execute({"model_results": results}).output["ranked_models"][0]
+        assert best["display_name"] == "XGBoost"
+
     def test_evaluation_ignores_extra_context(self):
         base = EvaluationAgent().execute({"model_results": self.RESULTS}).output
         noisy = EvaluationAgent().execute({"model_results": self.RESULTS, "metrics": {"f1": 1.0}}).output

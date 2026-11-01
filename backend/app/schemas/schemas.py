@@ -62,11 +62,16 @@ class HistoryEntry(BaseModel):
     approach: str
     query_text: str
     tools_called: list[str]
+    result_data: dict[str, Any] = Field(default_factory=dict)
     rag_used: str
     confidence: Optional[float] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class HistoryClearResponse(BaseModel):
+    deleted: int
 
 
 # ── Tool result ──────────────────────────────────────────────────────

@@ -89,6 +89,13 @@ describe('QueryForm', () => {
     expect(setQuery).toHaveBeenCalledWith(expect.stringContaining('predict'));
   });
 
+  it('submits the clicked sample text explicitly', async () => {
+    const onSubmit = vi.fn();
+    renderForm({ query: '', onSubmit });
+    await userEvent.click(screen.getByText('Predict species'));
+    expect(onSubmit).toHaveBeenCalledWith(expect.stringContaining('predict'));
+  });
+
   it('shows loading state on submit button when loading', () => {
     renderForm({ loading: true, query: 'test' });
     expect(screen.getByText('Processing...')).toBeInTheDocument();

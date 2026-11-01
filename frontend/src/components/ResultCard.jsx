@@ -180,12 +180,6 @@ export default function ResultCard({ data, isCompare = false, side = 'left' }) {
         </div>
       )}
 
-      {/* Timestamp */}
-      {data.created_at && (
-        <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
-          {new Date(data.created_at).toLocaleString()}
-        </div>
-      )}
     </div>
   );
 }

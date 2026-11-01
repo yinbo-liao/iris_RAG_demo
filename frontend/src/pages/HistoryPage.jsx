@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getHistory } from '../api';
+import { getHistory, clearHistory as clearHistoryRequest } from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { Zap, Sparkles, Brain, Clock, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Zap, Sparkles, Network, Brain, Clock, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 const RELATIVE_TIME = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
@@ -43,10 +43,14 @@ export default function HistoryPage() {
     fetchHistory();
   }, [fetchHistory]);
 
-  const clearHistory = () => {
-    if (confirm('Clear all query history? This cannot be undone.')) {
-      // Note: The API doesn't have a clear endpoint, so we just clear local state
+  const clearHistory = async () => {
+    if (!confirm('Clear all query history? This cannot be undone.')) return;
+    try {
+      await clearHistoryRequest();
       setHistory([]);
+      setExpandedId(null);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -107,7 +111,14 @@ export default function HistoryPage() {
           <div className="space-y-3">
             {history.map((entry) => {
               const isExpanded = expandedId === entry.id;
-              const isCombined = entry.rag_used === 'yes';
+              const isMultiAgent = entry.approach === 'multi_agent';
+              const isCombined = entry.approach === 'combined_tools';
+              const ragUsed = entry.rag_used === 'yes';
+              // Multi-agent logs store the winning model's F1 (0-1); other
+              // approaches have no confidence at all.
+              const confidencePct = entry.confidence == null
+                ? null
+                : (isMultiAgent ? entry.confidence * 100 : entry.confidence);
 
               return (
                 <div
@@ -120,7 +131,12 @@ export default function HistoryPage() {
                     className="w-full text-left p-4 flex items-center gap-4"
                   >
                     {/* Approach Badge */}
-                    {isCombined ? (
+                    {isMultiAgent ? (
+                      <span className="rag-badge flex-shrink-0" title="Multi-agent pipeline">
+                        <Network className="w-3 h-3" />
+                        Multi-Agent
+                      </span>
+                    ) : isCombined ? (
                       <span className="approach-badge-combined flex-shrink-0">
                         <Sparkles className="w-3 h-3" />
                         Combined
@@ -133,7 +149,7 @@ export default function HistoryPage() {
                     )}
 
                     {/* RAG Badge */}
-                    {isCombined ? (
+                    {ragUsed ? (
                       <span className="rag-badge flex-shrink-0">
                         <Brain className="w-3 h-3" />
                         RAG
@@ -178,9 +194,9 @@ export default function HistoryPage() {
                       <pre className="text-xs bg-gray-50 rounded-lg p-3 overflow-x-auto text-gray-700 font-mono leading-relaxed max-h-64 overflow-y-auto">
                         {JSON.stringify(entry.result_data, null, 2)}
                       </pre>
-                      {entry.confidence && (
+                      {confidencePct != null && (
                         <p className="text-xs text-gray-400 mt-2">
-                          Confidence: {entry.confidence}%
+                          {isMultiAgent ? 'Best model F1' : 'Confidence'}: {confidencePct.toFixed(1)}%
                         </p>
                       )}
                     </div>

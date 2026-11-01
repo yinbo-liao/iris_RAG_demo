@@ -31,6 +31,7 @@ export default function ComparePage() {
           onSubmit={null}
           onCompare={submitCompare}
           showCompare={true}
+          showApproach={false}
         />
       </div>
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.agents.base import AgentResult, BaseAgent
+from app.agents.model_agents import display_model_name
 
 # F1 leads because the classes are balanced but per-class errors still matter.
 METRIC_WEIGHTS = {"f1": 0.5, "accuracy": 0.3, "precision": 0.1, "recall": 0.1}
@@ -12,6 +13,12 @@ METRIC_WEIGHTS = {"f1": 0.5, "accuracy": 0.3, "precision": 0.1, "recall": 0.1}
 
 def _weighted_score(metrics: dict[str, float]) -> float:
     return round(sum(metrics.get(metric, 0.0) * weight for metric, weight in METRIC_WEIGHTS.items()), 4)
+
+
+def _label(item: dict[str, Any] | None) -> str:
+    if not item:
+        return "unknown"
+    return item.get("display_name") or item.get("model") or "unknown"
 
 
 class EvaluationAgent(BaseAgent):
@@ -38,8 +45,13 @@ class EvaluationAgent(BaseAgent):
         scored = []
         for result in model_results:
             metrics = result.get("metrics", {})
+            model_name = result.get("model", "unknown")
+            engine = result.get("engine")
             scored.append({
-                "model": result.get("model", "unknown"),
+                "model": model_name,
+                # Never claim XGBoost when the sklearn fallback actually trained.
+                "display_name": display_model_name(model_name, engine),
+                "engine": engine,
                 "accuracy": metrics.get("accuracy", 0.0),
                 "precision": metrics.get("precision", 0.0),
                 "recall": metrics.get("recall", 0.0),
@@ -55,9 +67,9 @@ class EvaluationAgent(BaseAgent):
         runner_up = scored[1] if len(scored) > 1 else None
         margin = round(best["score"] - runner_up["score"], 4) if runner_up else None
 
-        reason = f"{best['model']} ranks first with weighted score {best['score']:.4f}"
+        reason = f"{_label(best)} ranks first with weighted score {best['score']:.4f}"
         if runner_up:
-            reason += f", {margin:.4f} ahead of {runner_up['model']}"
+            reason += f", {margin:.4f} ahead of {_label(runner_up)}"
         reason += " (F1 weighted most heavily)."
 
         tradeoffs: list[str] = []
@@ -65,7 +77,7 @@ class EvaluationAgent(BaseAgent):
             for metric in ("accuracy", "precision", "recall", "f1"):
                 if runner_up[metric] > best[metric]:
                     tradeoffs.append(
-                        f"{runner_up['model']} beats {best['model']} on {metric} "
+                        f"{_label(runner_up)} beats {_label(best)} on {metric} "
                         f"({runner_up[metric]:.4f} vs {best[metric]:.4f})."
                     )
             if margin is not None and margin < 0.01:
@@ -74,7 +86,7 @@ class EvaluationAgent(BaseAgent):
             cv_runner = runner_up.get("cv_f1_macro")
             if cv_best is not None and cv_runner is not None and cv_runner > cv_best:
                 tradeoffs.append(
-                    f"{runner_up['model']} has higher cross-validated F1 ({cv_runner:.4f} vs {cv_best:.4f}), "
+                    f"{_label(runner_up)} has higher cross-validated F1 ({cv_runner:.4f} vs {cv_best:.4f}), "
                     "suggesting better stability."
                 )
         if not tradeoffs:

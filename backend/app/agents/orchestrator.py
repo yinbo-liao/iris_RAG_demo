@@ -23,6 +23,13 @@ PLAN_STEPS = [
 ]
 
 
+def _label(item: dict[str, Any] | None) -> str:
+    """Report-facing model name; falls back to the raw name for older payloads."""
+    if not item:
+        return "unknown"
+    return item.get("display_name") or item.get("model") or "unknown"
+
+
 def _build_final_report(
     query: str,
     pattern: dict[str, Any],
@@ -36,14 +43,14 @@ def _build_final_report(
     citations = knowledge.get("citations") or []
 
     if best:
-        headline = f"Recommended classifier: {best['model']}"
+        headline = f"Recommended classifier: {_label(best)}"
         summary = (
             f"For \"{query}\", three classifiers were trained and compared. "
-            f"{best['model']} ranked first with accuracy {best['accuracy']:.3f}, "
+            f"{_label(best)} ranked first with accuracy {best['accuracy']:.3f}, "
             f"macro F1 {best['f1']:.3f}, precision {best['precision']:.3f}, and recall {best['recall']:.3f}"
         )
         if runner_up:
-            summary += f", ahead of {runner_up['model']} (F1 {runner_up['f1']:.3f})"
+            summary += f", ahead of {_label(runner_up)} (F1 {runner_up['f1']:.3f})"
         summary += ". " + (findings[0] if findings else "")
     else:
         headline = "No model could be evaluated"
@@ -61,7 +68,7 @@ def _build_final_report(
     recommendations = []
     if best:
         recommendations.append(
-            f"Adopt {best['model']} as the primary classifier; it leads the weighted ranking "
+            f"Adopt {_label(best)} as the primary classifier; it leads the weighted ranking "
             f"(score {best['score']:.4f})."
         )
     if pattern:
@@ -80,7 +87,7 @@ def _build_final_report(
             )
     if runner_up and margin is not None and margin < 0.01:
         recommendations.append(
-            f"Keep {runner_up['model']} as a challenger; the gap to the leader is under 0.01."
+            f"Keep {_label(runner_up)} as a challenger; the gap to the leader is under 0.01."
         )
     recommendations.append("Continue using stratified cross-validation when the dataset grows.")
 

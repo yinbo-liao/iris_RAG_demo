@@ -160,6 +160,22 @@ class TestQueryParsing:
         tools = _decide_tools("xyzxyz")
         assert "retrieve_knowledge" in tools
 
+    def test_decide_tools_filter_with_numbers(self):
+        # A numeric range must not steal dispatch from the filter intent.
+        tools = _decide_tools("filter flowers with petal length between 3 and 6")
+        assert tools[0] == "filter_flowers"
+
+    def test_decide_tools_bare_numbers(self):
+        assert _decide_tools("5.1 3.5 1.4 0.2")[0] == "predict_species"
+
+    def test_exec_tool_filter_extracts_feature(self):
+        result = _exec_tool("filter_flowers", "filter flowers with petal length between 3 and 6")
+        applied = result["result"]["filters_applied"]
+        assert applied["feature"] == "petal_length"
+        assert applied["min_val"] == 3.0
+        assert applied["max_val"] == 6.0
+        assert 0 < result["result"]["count"] < len(df)
+
     def test_exec_tool_predict(self):
         result = _exec_tool("predict_species", "predict 5.1 3.5 1.4 0.2")
         assert result["tool"] == "predict_species"

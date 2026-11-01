@@ -48,8 +48,11 @@ export default function ModelRankingTable({ evaluation }) {
                 >
                   <td className="py-2.5 pr-2 text-gray-500">{index + 1}</td>
                   <td className="py-2.5 pr-2 font-semibold text-gray-800">
-                    {model.model}
+                    {model.display_name || model.model}
                     {isBest && <span className="ml-2 text-[10px] uppercase text-amber-600">best</span>}
+                    {model.engine && (
+                      <div className="text-[10px] font-normal text-gray-400">{model.engine}</div>
+                    )}
                   </td>
                   {METRICS.map((metric) => (
                     <td

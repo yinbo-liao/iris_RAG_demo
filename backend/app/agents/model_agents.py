@@ -8,6 +8,7 @@ estimator is trained once per process and its metrics are reused.
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from sklearn.metrics import (
@@ -25,6 +26,25 @@ RANDOM_STATE = 42
 CLASS_NAMES = list(iris.target_names)
 
 _MODEL_CACHE: dict[str, dict[str, Any]] = {}
+_MODEL_LOCKS: dict[str, threading.Lock] = {}
+_MODEL_LOCKS_GUARD = threading.Lock()
+
+
+def _model_lock(key: str) -> threading.Lock:
+    """Per-model lock so concurrent requests fit each estimator at most once.
+
+    A single global lock would serialise the three parallel model agents, so the
+    lock is keyed by agent/model name.
+    """
+    with _MODEL_LOCKS_GUARD:
+        return _MODEL_LOCKS.setdefault(key, threading.Lock())
+
+
+def display_model_name(model_name: str, engine: str | None) -> str:
+    """Label a model without overstating the engine that actually trained it."""
+    if model_name == "XGBoost" and not str(engine or "").lower().startswith("xgboost"):
+        return "Gradient Boosting (XGBoost fallback)"
+    return model_name
 
 
 def _train_and_evaluate(model_name: str, estimator: Any, engine: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -90,12 +110,14 @@ class _ModelAgent(BaseAgent):
 
     def run(self, context: dict[str, Any]) -> AgentResult:
         key = type(self).__name__
-        if key not in _MODEL_CACHE:
-            _MODEL_CACHE[key] = self._fit()
+        with _model_lock(key):
+            if key not in _MODEL_CACHE:
+                _MODEL_CACHE[key] = self._fit()
+            cached = dict(_MODEL_CACHE[key])
         return AgentResult(
-            output=dict(_MODEL_CACHE[key]),
+            output=cached,
             reasoning=(
-                f"Trained {_MODEL_CACHE[key]['engine']} on a stratified "
+                f"Trained {cached['engine']} on a stratified "
                 f"{int((1 - TEST_SIZE) * 100)}/{int(TEST_SIZE * 100)} split "
                 f"(random_state={RANDOM_STATE}) and scored it with macro-averaged metrics "
                 "plus 5-fold cross-validation."

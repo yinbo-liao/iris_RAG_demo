@@ -18,6 +18,7 @@ export default function QueryForm({
   onSubmit,
   onCompare,
   showCompare = true,
+  showApproach = true,
 }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -35,8 +36,9 @@ export default function QueryForm({
 
   const handleSampleClick = (sampleQuery) => {
     setQuery(sampleQuery);
-    // Auto-submit with current approach after a short delay
-    setTimeout(() => onSubmit?.(), 200);
+    // Submit the clicked text explicitly — the parent may still hold the old
+    // query value until this render commits.
+    onSubmit?.(sampleQuery);
   };
 
   return (
@@ -63,6 +65,7 @@ export default function QueryForm({
       </div>
 
       {/* Approach Selector */}
+      {showApproach && (
       <div className="grid grid-cols-2 gap-3 mt-4">
         <button
           type="button"
@@ -102,6 +105,7 @@ export default function QueryForm({
           <p className="text-xs text-gray-500 ml-7">Multi-tool · RAG · Synthesis</p>
         </button>
       </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex items-center gap-3 mt-4">
